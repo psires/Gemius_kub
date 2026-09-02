@@ -3,7 +3,9 @@
 ## Current state
 
 The initial cluster exposes useful telemetry but has no collector, time-series
-database, or shared visualization layer yet.
+database, or shared visualization layer yet. The endpoints below are internal
+Kubernetes Service or pod-network ports. They are not host-network listeners
+and therefore do not appear in `ss` or `netstat` on every node.
 
 | Component | Available endpoint |
 | --- | --- |
@@ -111,6 +113,13 @@ an SSH tunnel through `wc1`. Later add an ingress controller, internal DNS,
 TLS, and OIDC. Headlamp must use per-user RBAC rather than a shared
 cluster-admin token. The YuniKorn UI and Spark UIs also need an authenticating
 reverse proxy before shared browser access.
+
+For example, the current YuniKorn `ClusterIP` is `10.102.5.208`. From a cluster
+node, its UI is reachable on `10.102.5.208:9889` and its Prometheus endpoint on
+`10.102.5.208:9080/ws/v1/metrics`, even though those ports are not listening on
+the node itself. Service IPs can change if the Service is recreated, so
+automation should resolve `yunikorn-service.yunikorn.svc` or use `kubectl
+port-forward`, rather than permanently embedding this IP.
 
 ## Dashboards
 
