@@ -113,4 +113,6 @@ kubectl get sparkapplications.sparkoperator.k8s.io -A
 ```
 
 See [architecture](docs/architecture.md), [PEX contract](docs/pex.md), and
-[operations](docs/operations.md) for the design and production gates.
+[operations](docs/operations.md) for the design and production gates. The
+[monitoring options](docs/monitoring-options.md) document covers metrics,
+dashboards, logs, Spark history, access, and the recommended rollout.
