@@ -102,6 +102,19 @@ helm upgrade --install example-apache ./charts/gemius-spark-job \
 
 Replace the example image, PEX URI, and entrypoint first.
 
+## Run the all-worker Spark Pi validation
+
+The checked-in Spark Pi validation uses the Apache operator and the dev queue.
+It places one executor on each of the three Spark worker nodes and verifies a
+deterministic value of Pi to seven decimal places:
+
+```bash
+kubectl apply -k examples/spark-pi
+```
+
+See [the Spark Pi example](examples/spark-pi/README.md) for validation and
+cleanup commands.
+
 ## Observe applications
 
 Both CRDs use the `sparkapp` short name, so use fully qualified resource names

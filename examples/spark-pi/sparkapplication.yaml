@@ -1,0 +1,80 @@
+apiVersion: spark.apache.org/v1
+kind: SparkApplication
+metadata:
+  name: spark-pi-7
+  labels:
+    app.kubernetes.io/name: spark-pi-7
+    app.kubernetes.io/part-of: gemius-spark
+    spark.gemius.io/group: dev
+spec:
+  pyFiles: local:///opt/spark-pi/spark_pi_7.py
+  sparkConf:
+    spark.app.name: spark-pi-7
+    spark.kubernetes.namespace: spark-dev
+    spark.kubernetes.container.image: apache/spark:4.1.1-java21-python3
+    spark.kubernetes.container.image.pullPolicy: IfNotPresent
+    spark.kubernetes.authenticate.driver.serviceAccountName: spark
+    spark.kubernetes.scheduler.name: yunikorn
+    spark.kubernetes.driver.label.queue: root.spark-dev
+    spark.kubernetes.executor.label.queue: root.spark-dev
+    spark.kubernetes.driver.annotation.yunikorn.apache.org/app-id: "{{APP_ID}}"
+    spark.kubernetes.executor.annotation.yunikorn.apache.org/app-id: "{{APP_ID}}"
+    spark.dynamicAllocation.enabled: "false"
+    spark.executor.instances: "3"
+    spark.default.parallelism: "3"
+    spark.scheduler.minRegisteredResourcesRatio: "1.0"
+    spark.scheduler.maxRegisteredResourcesWaitingTime: 120s
+    spark.driver.cores: "1"
+    spark.driver.memory: 1g
+    spark.driver.memoryOverhead: 512m
+    spark.kubernetes.driver.request.cores: "1"
+    spark.kubernetes.driver.limit.cores: "1"
+    spark.executor.cores: "1"
+    spark.executor.memory: 1g
+    spark.executor.memoryOverhead: 512m
+    spark.kubernetes.executor.request.cores: "1"
+    spark.kubernetes.executor.limit.cores: "1"
+  driverSpec:
+    podTemplateSpec:
+      metadata:
+        labels:
+          spark-pi.gemius.io/component: driver
+      spec:
+        nodeSelector:
+          gemius.io/node-role: spark-worker
+        volumes:
+          - name: spark-pi-code
+            configMap:
+              name: spark-pi-7-code
+        containers:
+          - name: spark-kubernetes-driver
+            volumeMounts:
+              - name: spark-pi-code
+                mountPath: /opt/spark-pi
+                readOnly: true
+  executorSpec:
+    podTemplateSpec:
+      metadata:
+        labels:
+          spark-pi.gemius.io/component: executor
+      spec:
+        nodeSelector:
+          gemius.io/node-role: spark-worker
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    spark-pi.gemius.io/component: executor
+                topologyKey: kubernetes.io/hostname
+        containers:
+          - name: spark-kubernetes-executor
+            env:
+              - name: KUBERNETES_NODE_NAME
+                valueFrom:
+                  fieldRef:
+                    fieldPath: spec.nodeName
+  applicationTolerations:
+    resourceRetainPolicy: Always
+  runtimeVersions:
+    sparkVersion: "4.1.1"
