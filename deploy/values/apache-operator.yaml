@@ -1,0 +1,33 @@
+operatorDeployment:
+  replicas: 1
+  operatorPod:
+    operatorContainer:
+      resources:
+        requests:
+          cpu: 500m
+          memory: 1Gi
+          ephemeral-storage: 1Gi
+        limits:
+          cpu: "2"
+          memory: 2Gi
+          ephemeral-storage: 2Gi
+
+workloadResources:
+  namespaces:
+    create: false
+    overrideWatchedNamespaces: true
+    data:
+      - spark-prod
+      - spark-beta
+      - spark-dev
+      - spark-adhoc
+  serviceAccount:
+    create: false
+    name: spark
+  role:
+    create: false
+  clusterRole:
+    create: false
+  roleBinding:
+    create: false
+

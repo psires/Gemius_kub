@@ -1,0 +1,37 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yunikorn-configs
+  namespace: yunikorn
+  labels:
+    {{- include "gemius-platform.labels" . | nindent 4 }}
+data:
+  queues.yaml: |
+    partitions:
+      - name: default
+        placementrules:
+          - name: tag
+            value: namespace
+            create: false
+        queues:
+          - name: root
+            submitacl: "*"
+            properties:
+              application.sort.policy: fair
+            queues:
+            {{- range .Values.groups }}
+              - name: spark-{{ .name }}
+                submitacl: "*"
+                maxapplications: {{ .maxApplications }}
+                properties:
+                  application.sort.policy: fair
+                  priority.offset: {{ .priorityOffset | quote }}
+                  preemption.policy: disabled
+                resources:
+                  guaranteed:
+                    vcore: {{ .resources.guaranteed.vcore | quote }}
+                    memory: {{ .resources.guaranteed.memory | quote }}
+                  max:
+                    vcore: {{ .resources.max.vcore | quote }}
+                    memory: {{ .resources.max.memory | quote }}
+            {{- end }}

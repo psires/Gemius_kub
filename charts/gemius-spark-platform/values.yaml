@@ -1,0 +1,56 @@
+# Illustrative capacity for a 100-vCPU / 400-GiB Spark pool. Override these
+# values for every real environment.
+groups:
+  - name: prod
+    priorityOffset: 300
+    maxApplications: 20
+    resources:
+      guaranteed:
+        vcore: "50"
+        memory: 200Gi
+      max:
+        vcore: "100"
+        memory: 400Gi
+  - name: beta
+    priorityOffset: 200
+    maxApplications: 8
+    resources:
+      guaranteed:
+        vcore: "20"
+        memory: 80Gi
+      max:
+        vcore: "80"
+        memory: 320Gi
+  - name: dev
+    priorityOffset: 100
+    maxApplications: 10
+    resources:
+      guaranteed:
+        vcore: "15"
+        memory: 60Gi
+      max:
+        vcore: "70"
+        memory: 280Gi
+  - name: adhoc
+    priorityOffset: 0
+    maxApplications: 4
+    resources:
+      guaranteed:
+        vcore: "5"
+        memory: 20Gi
+      max:
+        vcore: "50"
+        memory: 200Gi
+
+serviceAccount:
+  name: spark
+
+limitRange:
+  enabled: true
+  defaultRequest:
+    cpu: 500m
+    memory: 1Gi
+  default:
+    cpu: "2"
+    memory: 4Gi
+

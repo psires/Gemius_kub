@@ -1,0 +1,18 @@
+operator: kubeflow
+group: dev
+nameOverride: example-kubeflow-pex
+
+image:
+  repository: ghcr.io/psires/gemius-spark-python
+  tag: 4.1.1-python3
+
+pex:
+  uri: s3a://replace-me/jobs/example/2026.09.0/example.pex
+  fileName: example.pex
+  entrypoint: example.main:main
+
+dynamicAllocation:
+  minExecutors: 1
+  initialExecutors: 2
+  maxExecutors: 10
+

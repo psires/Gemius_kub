@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["groups", "serviceAccount", "limitRange"],
+  "properties": {
+    "groups": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["name", "priorityOffset", "maxApplications", "resources"],
+        "properties": {
+          "name": {"type": "string", "enum": ["prod", "beta", "dev", "adhoc"]},
+          "priorityOffset": {"type": "integer"},
+          "maxApplications": {"type": "integer", "minimum": 2},
+          "resources": {
+            "type": "object",
+            "required": ["guaranteed", "max"],
+            "properties": {
+              "guaranteed": {
+                "type": "object",
+                "required": ["vcore", "memory"]
+              },
+              "max": {
+                "type": "object",
+                "required": ["vcore", "memory"]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

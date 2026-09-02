@@ -1,0 +1,60 @@
+{{- $root := . -}}
+{{- range .Values.groups }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $root.Values.serviceAccount.name }}
+  namespace: spark-{{ .name }}
+  labels:
+    {{- include "gemius-platform.labels" $root | nindent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: spark-driver
+  namespace: spark-{{ .name }}
+  labels:
+    {{- include "gemius-platform.labels" $root | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "configmaps", "persistentvolumeclaims"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete", "deletecollection"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: spark-driver
+  namespace: spark-{{ .name }}
+  labels:
+    {{- include "gemius-platform.labels" $root | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $root.Values.serviceAccount.name }}
+    namespace: spark-{{ .name }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: spark-driver
+{{- if $root.Values.limitRange.enabled }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: spark-container-defaults
+  namespace: spark-{{ .name }}
+  labels:
+    {{- include "gemius-platform.labels" $root | nindent 4 }}
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        {{- toYaml $root.Values.limitRange.defaultRequest | nindent 8 }}
+      default:
+        {{- toYaml $root.Values.limitRange.default | nindent 8 }}
+{{- end }}
+---
+{{- end }}
+

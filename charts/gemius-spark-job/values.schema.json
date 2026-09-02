@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["operator", "group", "sparkVersion", "image", "pex"],
+  "properties": {
+    "operator": {"type": "string", "enum": ["apache", "kubeflow"]},
+    "group": {"type": "string", "enum": ["prod", "beta", "dev", "adhoc"]},
+    "nameOverride": {"type": "string", "minLength": 1, "maxLength": 48},
+    "namespace": {"type": "string"},
+    "queue": {"type": "string"},
+    "sparkVersion": {"type": "string", "minLength": 1},
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag", "pullPolicy"],
+      "properties": {
+        "repository": {"type": "string", "minLength": 1},
+        "tag": {"type": "string", "minLength": 1},
+        "pullPolicy": {"type": "string", "enum": ["Always", "IfNotPresent", "Never"]}
+      }
+    },
+    "pex": {
+      "type": "object",
+      "required": ["uri", "fileName", "entrypoint"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1},
+        "fileName": {"type": "string", "pattern": "^[A-Za-z0-9._-]+\\.pex$"},
+        "entrypoint": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_.]*:[A-Za-z_][A-Za-z0-9_]*$"},
+        "interpreterMode": {"type": "boolean"}
+      }
+    },
+    "dynamicAllocation": {
+      "type": "object",
+      "required": ["enabled", "minExecutors", "initialExecutors", "maxExecutors"],
+      "properties": {
+        "enabled": {"type": "boolean"},
+        "minExecutors": {"type": "integer", "minimum": 0},
+        "initialExecutors": {"type": "integer", "minimum": 0},
+        "maxExecutors": {"type": "integer", "minimum": 1}
+      }
+    },
+    "ttlSecondsAfterFinished": {"type": "integer", "minimum": 0}
+  }
+}
+

@@ -1,0 +1,63 @@
+{{- if eq .Values.operator "kubeflow" }}
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: {{ include "gemius-job.name" . }}
+  namespace: {{ include "gemius-job.namespace" . }}
+  labels:
+    {{- include "gemius-job.labels" . | nindent 4 }}
+spec:
+  type: Python
+  pythonVersion: "3"
+  mode: cluster
+  image: {{ include "gemius-job.image" . | quote }}
+  imagePullPolicy: {{ .Values.image.pullPolicy }}
+  mainApplicationFile: {{ .Values.mainApplicationFile | quote }}
+  sparkVersion: {{ .Values.sparkVersion | quote }}
+  timeToLiveSeconds: {{ .Values.ttlSecondsAfterFinished }}
+  {{- with .Values.arguments }}
+  arguments:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  batchScheduler: yunikorn
+  batchSchedulerOptions:
+    queue: {{ include "gemius-job.queue" . | quote }}
+  sparkConf:
+    spark.app.name: {{ include "gemius-job.name" . | quote }}
+    spark.files: {{ .Values.pex.uri | quote }}
+    spark.pyspark.python: {{ printf "./%s" .Values.pex.fileName | quote }}
+    spark.kubernetes.driverEnv.GEMIUS_SPARK_ENTRYPOINT: {{ .Values.pex.entrypoint | quote }}
+    {{- if .Values.pex.interpreterMode }}
+    spark.kubernetes.driverEnv.PEX_INTERPRETER: "1"
+    spark.executorEnv.PEX_INTERPRETER: "1"
+    {{- end }}
+    {{- range $key, $value := .Values.sparkConf }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  driver:
+    cores: {{ .Values.driver.cores }}
+    coreRequest: {{ .Values.driver.coreRequest | quote }}
+    coreLimit: {{ .Values.driver.coreLimit | quote }}
+    memory: {{ .Values.driver.memory | quote }}
+    memoryOverhead: {{ .Values.driver.memoryOverhead | quote }}
+    serviceAccount: {{ .Values.serviceAccount }}
+    securityContext:
+      {{- include "gemius-job.securityContext" . | nindent 6 }}
+  executor:
+    instances: {{ .Values.dynamicAllocation.initialExecutors }}
+    cores: {{ .Values.executor.cores }}
+    coreRequest: {{ .Values.executor.coreRequest | quote }}
+    coreLimit: {{ .Values.executor.coreLimit | quote }}
+    memory: {{ .Values.executor.memory | quote }}
+    memoryOverhead: {{ .Values.executor.memoryOverhead | quote }}
+    securityContext:
+      {{- include "gemius-job.securityContext" . | nindent 6 }}
+  dynamicAllocation:
+    enabled: {{ .Values.dynamicAllocation.enabled }}
+    minExecutors: {{ .Values.dynamicAllocation.minExecutors }}
+    initialExecutors: {{ .Values.dynamicAllocation.initialExecutors }}
+    maxExecutors: {{ .Values.dynamicAllocation.maxExecutors }}
+  restartPolicy:
+    type: Never
+{{- end }}
+

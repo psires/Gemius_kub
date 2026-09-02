@@ -1,0 +1,22 @@
+# Only Spark applications explicitly select YuniKorn. The admission controller
+# is disabled so platform and unrelated workloads retain their scheduler.
+embedAdmissionController: false
+enableWebService: true
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "4"
+    memory: 2Gi
+
+web:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+

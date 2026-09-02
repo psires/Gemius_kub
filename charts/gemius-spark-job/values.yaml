@@ -1,0 +1,49 @@
+operator: apache
+group: dev
+nameOverride: pex-example
+namespace: ""
+# Normally derived as root.spark-<group>. Override only for platform testing.
+queue: ""
+serviceAccount: spark
+
+sparkVersion: "4.1.1"
+image:
+  repository: ghcr.io/psires/gemius-spark-python
+  tag: 4.1.1-python3
+  pullPolicy: IfNotPresent
+
+mainApplicationFile: local:///opt/spark/work-dir/pex_runner.py
+
+pex:
+  uri: s3a://replace-me/jobs/example/example.pex
+  fileName: example.pex
+  entrypoint: example.main:main
+  interpreterMode: true
+
+arguments: []
+
+driver:
+  cores: 1
+  coreRequest: "1"
+  coreLimit: "1"
+  memory: 2g
+  memoryOverhead: 512m
+
+executor:
+  cores: 2
+  coreRequest: "2"
+  coreLimit: "2"
+  memory: 4g
+  memoryOverhead: 512m
+
+dynamicAllocation:
+  enabled: true
+  minExecutors: 1
+  initialExecutors: 2
+  maxExecutors: 10
+
+ttlSecondsAfterFinished: 86400
+resourceRetainPolicy: OnFailure
+
+# Additional Spark configuration. Values are rendered as strings.
+sparkConf: {}

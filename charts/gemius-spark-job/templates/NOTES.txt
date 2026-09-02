@@ -1,0 +1,7 @@
+Operator: {{ .Values.operator }}
+Application: {{ include "gemius-job.name" . }}
+Namespace: {{ include "gemius-job.namespace" . }}
+YuniKorn queue: {{ include "gemius-job.queue" . }}
+
+Use a fully qualified resource name when both operators are installed.
+

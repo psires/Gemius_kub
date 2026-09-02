@@ -1,0 +1,57 @@
+{{- if eq .Values.operator "apache" }}
+apiVersion: spark.apache.org/v1
+kind: SparkApplication
+metadata:
+  name: {{ include "gemius-job.name" . }}
+  namespace: {{ include "gemius-job.namespace" . }}
+  labels:
+    {{- include "gemius-job.labels" . | nindent 4 }}
+spec:
+  pyFiles: {{ .Values.mainApplicationFile | quote }}
+  {{- with .Values.arguments }}
+  driverArgs:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  sparkConf:
+    spark.app.name: {{ include "gemius-job.name" . | quote }}
+    spark.kubernetes.namespace: {{ include "gemius-job.namespace" . | quote }}
+    spark.kubernetes.container.image: {{ include "gemius-job.image" . | quote }}
+    spark.kubernetes.container.image.pullPolicy: {{ .Values.image.pullPolicy | quote }}
+    spark.kubernetes.authenticate.driver.serviceAccountName: {{ .Values.serviceAccount | quote }}
+    spark.kubernetes.scheduler.name: "yunikorn"
+    spark.kubernetes.driver.label.queue: {{ include "gemius-job.queue" . | quote }}
+    spark.kubernetes.executor.label.queue: {{ include "gemius-job.queue" . | quote }}
+    spark.kubernetes.driver.annotation.yunikorn.apache.org/app-id: {{ "{{APP_ID}}" | quote }}
+    spark.kubernetes.executor.annotation.yunikorn.apache.org/app-id: {{ "{{APP_ID}}" | quote }}
+    spark.files: {{ .Values.pex.uri | quote }}
+    spark.pyspark.python: {{ printf "./%s" .Values.pex.fileName | quote }}
+    spark.kubernetes.driverEnv.GEMIUS_SPARK_ENTRYPOINT: {{ .Values.pex.entrypoint | quote }}
+    {{- if .Values.pex.interpreterMode }}
+    spark.kubernetes.driverEnv.PEX_INTERPRETER: "1"
+    spark.executorEnv.PEX_INTERPRETER: "1"
+    {{- end }}
+    spark.driver.cores: {{ .Values.driver.cores | quote }}
+    spark.driver.memory: {{ .Values.driver.memory | quote }}
+    spark.driver.memoryOverhead: {{ .Values.driver.memoryOverhead | quote }}
+    spark.kubernetes.driver.request.cores: {{ .Values.driver.coreRequest | quote }}
+    spark.kubernetes.driver.limit.cores: {{ .Values.driver.coreLimit | quote }}
+    spark.executor.cores: {{ .Values.executor.cores | quote }}
+    spark.executor.memory: {{ .Values.executor.memory | quote }}
+    spark.executor.memoryOverhead: {{ .Values.executor.memoryOverhead | quote }}
+    spark.kubernetes.executor.request.cores: {{ .Values.executor.coreRequest | quote }}
+    spark.kubernetes.executor.limit.cores: {{ .Values.executor.coreLimit | quote }}
+    spark.dynamicAllocation.enabled: {{ .Values.dynamicAllocation.enabled | quote }}
+    spark.dynamicAllocation.shuffleTracking.enabled: {{ .Values.dynamicAllocation.enabled | quote }}
+    spark.dynamicAllocation.minExecutors: {{ .Values.dynamicAllocation.minExecutors | quote }}
+    spark.dynamicAllocation.initialExecutors: {{ .Values.dynamicAllocation.initialExecutors | quote }}
+    spark.dynamicAllocation.maxExecutors: {{ .Values.dynamicAllocation.maxExecutors | quote }}
+    {{- range $key, $value := .Values.sparkConf }}
+    {{ $key }}: {{ $value | quote }}
+    {{- end }}
+  applicationTolerations:
+    resourceRetainPolicy: {{ .Values.resourceRetainPolicy }}
+    ttlAfterStopMillis: {{ mul .Values.ttlSecondsAfterFinished 1000 }}
+  runtimeVersions:
+    sparkVersion: {{ .Values.sparkVersion | quote }}
+{{- end }}
+

@@ -1,0 +1,13 @@
+{{- range .Values.groups }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: spark-{{ .name }}
+  annotations:
+    helm.sh/resource-policy: keep
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+    spark.gemius.io/enabled: "true"
+    spark.gemius.io/group: {{ .name | quote }}
+---
+{{- end }}

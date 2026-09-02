@@ -1,0 +1,7 @@
+apiVersion: v2
+name: gemius-spark-platform
+description: Shared namespaces, RBAC, and YuniKorn queues for Gemius Spark
+type: application
+version: 0.1.0
+appVersion: "1.0"
+

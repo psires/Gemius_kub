@@ -1,0 +1,35 @@
+controller:
+  replicas: 1
+  batchScheduler:
+    enable: true
+    kubeSchedulerNames:
+      - yunikorn
+    default: yunikorn
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+
+webhook:
+  enable: true
+  replicas: 1
+
+spark:
+  jobNamespaces:
+    - spark-prod
+    - spark-beta
+    - spark-dev
+    - spark-adhoc
+  serviceAccount:
+    create: false
+    name: spark
+  rbac:
+    create: false
+
+prometheus:
+  metrics:
+    enable: true
+
