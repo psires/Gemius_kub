@@ -23,6 +23,18 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../versions.env
 source "$repo_root/versions.env"
 
+platform_values_args=()
+if [[ -n "${PLATFORM_VALUES:-}" ]]; then
+  if [[ "$PLATFORM_VALUES" != /* ]]; then
+    PLATFORM_VALUES="$repo_root/$PLATFORM_VALUES"
+  fi
+  [[ -f "$PLATFORM_VALUES" ]] || {
+    echo "Platform values file not found: $PLATFORM_VALUES" >&2
+    exit 1
+  }
+  platform_values_args=(--values "$PLATFORM_VALUES")
+fi
+
 kubectl cluster-info >/dev/null
 
 helm repo add --force-update yunikorn https://apache.github.io/yunikorn-release
@@ -40,6 +52,7 @@ helm upgrade --install yunikorn yunikorn/yunikorn \
 helm upgrade --install gemius-spark-platform \
   "$repo_root/charts/gemius-spark-platform" \
   --namespace yunikorn \
+  "${platform_values_args[@]}" \
   --wait --timeout 5m
 
 if [[ "$profile" == "apache" || "$profile" == "both" ]]; then
@@ -61,4 +74,3 @@ if [[ "$profile" == "kubeflow" || "$profile" == "both" ]]; then
 fi
 
 echo "Installed shared platform with operator profile: $profile"
-

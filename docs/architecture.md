@@ -51,7 +51,9 @@ controls which group namespace a user may submit to.
 
 The committed capacity is an illustrative 100-vCPU/400-GiB Spark pool. Change
 `charts/gemius-spark-platform/values.yaml` or supply an environment values file
-before deployment.
+before deployment. The initial four-VM cluster supplies
+`deploy/values/cluster-4vm.yaml` through the `PLATFORM_VALUES` installer
+variable.
 
 ## Coexistence
 

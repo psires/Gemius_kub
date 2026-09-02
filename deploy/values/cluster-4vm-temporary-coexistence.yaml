@@ -1,0 +1,48 @@
+# Temporary live profile while pre-existing host Java processes still run.
+# Replace with cluster-4vm.yaml as soon as those processes are shut down.
+rootResources:
+  max:
+    vcore: "18"
+    memory: 38Gi
+
+groups:
+  - name: prod
+    priorityOffset: 300
+    maxApplications: 8
+    resources:
+      guaranteed:
+        vcore: "8"
+        memory: 14Gi
+      max:
+        vcore: "18"
+        memory: 38Gi
+  - name: beta
+    priorityOffset: 200
+    maxApplications: 4
+    resources:
+      guaranteed:
+        vcore: "4"
+        memory: 7Gi
+      max:
+        vcore: "14"
+        memory: 28Gi
+  - name: dev
+    priorityOffset: 100
+    maxApplications: 6
+    resources:
+      guaranteed:
+        vcore: "3"
+        memory: 5Gi
+      max:
+        vcore: "12"
+        memory: 24Gi
+  - name: adhoc
+    priorityOffset: 0
+    maxApplications: 2
+    resources:
+      guaranteed:
+        vcore: "1"
+        memory: 2Gi
+      max:
+        vcore: "6"
+        memory: 10Gi

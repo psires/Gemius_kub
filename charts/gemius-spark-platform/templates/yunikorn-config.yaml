@@ -18,6 +18,10 @@ data:
             submitacl: "*"
             properties:
               application.sort.policy: fair
+            resources:
+              max:
+                vcore: {{ .Values.rootResources.max.vcore | quote }}
+                memory: {{ .Values.rootResources.max.memory | quote }}
             queues:
             {{- range .Values.groups }}
               - name: spark-{{ .name }}

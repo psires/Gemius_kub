@@ -1,5 +1,10 @@
 # Illustrative capacity for a 100-vCPU / 400-GiB Spark pool. Override these
 # values for every real environment.
+rootResources:
+  max:
+    vcore: "100"
+    memory: 400Gi
+
 groups:
   - name: prod
     priorityOffset: 300
@@ -53,4 +58,3 @@ limitRange:
   default:
     cpu: "2"
     memory: 4Gi
-

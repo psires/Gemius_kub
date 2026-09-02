@@ -1,0 +1,49 @@
+# Capacity profile for the initial three-worker Spark pool: 24 vCPU and
+# approximately 94 GiB allocatable memory. The root ceiling leaves headroom for
+# Kubernetes, networking, YuniKorn, and both Spark operators.
+rootResources:
+  max:
+    vcore: "22"
+    memory: 84Gi
+
+groups:
+  - name: prod
+    priorityOffset: 300
+    maxApplications: 8
+    resources:
+      guaranteed:
+        vcore: "10"
+        memory: 36Gi
+      max:
+        vcore: "22"
+        memory: 84Gi
+  - name: beta
+    priorityOffset: 200
+    maxApplications: 4
+    resources:
+      guaranteed:
+        vcore: "5"
+        memory: 18Gi
+      max:
+        vcore: "18"
+        memory: 68Gi
+  - name: dev
+    priorityOffset: 100
+    maxApplications: 6
+    resources:
+      guaranteed:
+        vcore: "4"
+        memory: 14Gi
+      max:
+        vcore: "16"
+        memory: 60Gi
+  - name: adhoc
+    priorityOffset: 0
+    maxApplications: 2
+    resources:
+      guaranteed:
+        vcore: "1"
+        memory: 6Gi
+      max:
+        vcore: "10"
+        memory: 36Gi

@@ -1,8 +1,18 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["groups", "serviceAccount", "limitRange"],
+  "required": ["rootResources", "groups", "serviceAccount", "limitRange"],
   "properties": {
+    "rootResources": {
+      "type": "object",
+      "required": ["max"],
+      "properties": {
+        "max": {
+          "type": "object",
+          "required": ["vcore", "memory"]
+        }
+      }
+    },
     "groups": {
       "type": "array",
       "minItems": 4,

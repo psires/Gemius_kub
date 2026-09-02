@@ -41,12 +41,36 @@ and limits control how the shared capacity moves between groups.
 
 Review and replace all example capacity and artifact values before production.
 
+## Bootstrap the four-node cluster
+
+The checked-in kubeadm automation builds the initial cluster with worker-09 as
+the control plane and worker-10 through worker-12 as workers. Run it on the
+jump host, where the existing SSH agent can reach all four nodes:
+
+```bash
+cd /path/to/Gemius_kub
+SSH_AUTH_SOCK=/tmp/ssh-x6DjE2qGUQhc/agent.2816 \
+  ./infra/kubeadm/orchestrate.sh
+```
+
+The automation installs Kubernetes 1.35, containerd, Calico, Helm, and then
+deploys YuniKorn plus both Spark operators. It refuses to replace an existing
+cluster and does not modify the existing MooseFS mounts. See
+[the kubeadm runbook](docs/kubeadm-cluster.md) for topology, storage, reruns,
+and verification.
+
 ## Install
 
 Install the shared scheduler, queues, namespaces, and both operators:
 
 ```bash
 ./scripts/install.sh both
+```
+
+For the initial four-VM cluster, use its capacity profile:
+
+```bash
+PLATFORM_VALUES=deploy/values/cluster-4vm.yaml ./scripts/install.sh both
 ```
 
 Install only one operator profile:
