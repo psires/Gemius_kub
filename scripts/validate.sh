@@ -42,6 +42,26 @@ bash -n "$repo_root/scripts/validate.sh"
 for script in "$repo_root"/infra/kubeadm/*.sh; do
   bash -n "$script"
 done
+"$repo_root/infra/kubeadm/orchestrate.sh" \
+  --control-planes 1 --plan >/dev/null
+"$repo_root/infra/kubeadm/orchestrate.sh" \
+  --control-planes 3 \
+  --inventory "$repo_root/infra/kubeadm/inventory-ha.example.env" \
+  --plan >/dev/null
+if "$repo_root/infra/kubeadm/orchestrate.sh" \
+  --control-planes 2 \
+  --inventory "$repo_root/infra/kubeadm/inventory-ha.example.env" \
+  --plan >/dev/null 2>&1; then
+  echo "Even control-plane count unexpectedly passed validation" >&2
+  exit 1
+fi
+if "$repo_root/infra/kubeadm/orchestrate.sh" \
+  --control-planes 3 \
+  --inventory "$repo_root/infra/kubeadm/inventory.env" \
+  --plan >/dev/null 2>&1; then
+  echo "Node-specific API endpoint unexpectedly passed HA validation" >&2
+  exit 1
+fi
 PYTHONPYCACHEPREFIX="$tmp_dir/pycache" \
   python3 -m py_compile "$repo_root/images/spark-pex/pex_runner.py"
 

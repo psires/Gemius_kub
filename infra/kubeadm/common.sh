@@ -18,6 +18,19 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
 }
 
+is_ipv4() {
+  local address="$1"
+  local octets
+  local octet
+
+  IFS=. read -r -a octets <<<"$address"
+  [[ "${#octets[@]}" -eq 4 ]] || return 1
+  for octet in "${octets[@]}"; do
+    [[ "$octet" =~ ^[0-9]+$ ]] || return 1
+    (( 10#$octet >= 0 && 10#$octet <= 255 )) || return 1
+  done
+}
+
 wait_for_nodes() {
   local expected="$1"
   local deadline=$((SECONDS + 600))

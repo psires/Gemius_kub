@@ -1,4 +1,4 @@
-# Four-node kubeadm cluster
+# Current four-node kubeadm cluster
 
 ## Topology
 
@@ -9,10 +9,12 @@
 | Worker | `spark-dev-02-worker-11.archeo.gem.lan` | `10.21.3.237` |
 | Worker | `spark-dev-02-worker-12.archeo.gem.lan` | `10.21.3.238` |
 
-This is an initial, non-HA control plane. The loss of worker-09 stops API and
-scheduling operations, although already-running pods can continue on workers.
-Before production, add an API load-balancer endpoint and two more control-plane
-members, or migrate the control plane to dedicated machines.
+This is the currently deployed, initial non-HA control plane. The loss of
+worker-09 stops API and scheduling operations, although already-running pods
+can continue on workers.
+The parameterized deployment automation can create a new cluster with an odd
+number of stacked control-plane/etcd members. It does not convert this existing
+cluster in place. See [the HA control-plane runbook](ha-control-plane.md).
 
 ## Software and networking
 
@@ -70,12 +72,14 @@ Copy or clone this repository to `wc1`, then run:
 ```bash
 cd /path/to/Gemius_kub
 SSH_AUTH_SOCK=/tmp/ssh-x6DjE2qGUQhc/agent.2816 \
-  ./infra/kubeadm/orchestrate.sh
+  ./infra/kubeadm/orchestrate.sh --control-planes 1
 ```
 
-The orchestration is safe to rerun for the cluster it created: package and
-Helm operations are convergent, initialized/joined nodes are detected, and
-Helm uses upgrades. It intentionally contains no reset or disk-format path.
+The current inventory is intentionally valid only with `--control-planes 1`:
+its API endpoint identifies worker-09 directly. The orchestration is safe to
+rerun with the same role assignment: package and Helm operations are
+convergent, initialized/joined nodes are detected, and Helm uses upgrades. It
+intentionally contains no reset or disk-format path.
 
 Kubelets request CA-signed serving certificates. Kubernetes intentionally does
 not auto-approve those requests, so the bootstrap calls

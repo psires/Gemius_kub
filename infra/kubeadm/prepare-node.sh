@@ -9,7 +9,7 @@ require_root
 : "${NODE_IP:?set NODE_IP to this node ens3 address}"
 : "${KUBERNETES_MINOR:=1.35}"
 
-[[ "$NODE_IP" =~ ^10\.21\.[0-9]+\.[0-9]+$ ]] || fail "unexpected NODE_IP: $NODE_IP"
+is_ipv4 "$NODE_IP" || fail "NODE_IP must be a valid IPv4 address: $NODE_IP"
 mountpoint -q /mnt/ssd1 || fail "/mnt/ssd1 is not mounted"
 mountpoint -q /mnt/ssd2 || fail "/mnt/ssd2 is not mounted"
 [[ "$(findmnt -n -o FSTYPE /mnt/ssd1)" == "ext4" ]] || fail "/mnt/ssd1 is not ext4"

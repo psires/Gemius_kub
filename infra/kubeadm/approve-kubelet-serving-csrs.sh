@@ -4,8 +4,17 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=common.sh
 source "$script_dir/common.sh"
-# shellcheck source=inventory.env
-source "$script_dir/inventory.env"
+
+if [[ -n "${INVENTORY_FILE:-}" ]]; then
+  inventory_file="$INVENTORY_FILE"
+elif [[ -f /etc/gemius-k8s/inventory.env ]]; then
+  inventory_file=/etc/gemius-k8s/inventory.env
+else
+  inventory_file="$script_dir/inventory.env"
+fi
+[[ -f "$inventory_file" ]] || fail "inventory file not found: $inventory_file"
+# shellcheck disable=SC1090
+source "$inventory_file"
 
 require_root
 require_command kubectl
@@ -14,11 +23,10 @@ require_command openssl
 export KUBECONFIG
 
 declare -A expected_ip
-control_plane_node="${CONTROL_PLANE_HOST%%.*}"
-expected_ip["$control_plane_node"]="$CONTROL_PLANE_IP"
-for index in "${!WORKER_HOSTS[@]}"; do
-  worker_node="${WORKER_HOSTS[$index]%%.*}"
-  expected_ip["$worker_node"]="${WORKER_IPS[$index]}"
+[[ "${#NODE_HOSTS[@]}" -eq "${#NODE_IPS[@]}" ]] || fail "node inventory lengths differ"
+for index in "${!NODE_HOSTS[@]}"; do
+  node="${NODE_HOSTS[$index]%%.*}"
+  expected_ip["$node"]="${NODE_IPS[$index]}"
 done
 
 mapfile -t pending_csrs < <(

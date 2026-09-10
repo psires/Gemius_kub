@@ -50,7 +50,7 @@ jump host, where the existing SSH agent can reach all four nodes:
 ```bash
 cd /path/to/Gemius_kub
 SSH_AUTH_SOCK=/tmp/ssh-x6DjE2qGUQhc/agent.2816 \
-  ./infra/kubeadm/orchestrate.sh
+  ./infra/kubeadm/orchestrate.sh --control-planes 1
 ```
 
 The automation installs Kubernetes 1.35, containerd, Calico, Helm, and then
@@ -58,6 +58,21 @@ deploys YuniKorn plus both Spark operators. It refuses to replace an existing
 cluster and does not modify the existing MooseFS mounts. See
 [the kubeadm runbook](docs/kubeadm-cluster.md) for topology, storage, reruns,
 and verification.
+
+For a new HA cluster, supply an ordered inventory, an odd control-plane count,
+and a stable API load-balancer endpoint. Validate the role assignment without
+connecting first:
+
+```bash
+./infra/kubeadm/orchestrate.sh \
+  --control-planes 3 \
+  --inventory /secure/path/new-cluster.env \
+  --platform-values deploy/values/new-cluster.yaml \
+  --plan
+```
+
+See [the HA control-plane runbook](docs/ha-control-plane.md) before removing
+`--plan`.
 
 ## Install
 
