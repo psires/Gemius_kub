@@ -1,0 +1,52 @@
+# Capacity profile for five Spark workers, each with 8 vCPU and approximately
+# 16 GiB RAM. The 36-vCPU/68-GiB root ceiling leaves headroom for Kubernetes,
+# Calico, YuniKorn, both Spark operators, and node-level variance.
+rootResources:
+  max:
+    vcore: "36"
+    memory: 68Gi
+
+# Guarantees total 32 vCPU and 60 GiB. They define queue entitlement under
+# contention; unused guaranteed resources remain borrowable by other queues up
+# to each queue's maximum.
+groups:
+  - name: prod
+    priorityOffset: 300
+    maxApplications: 8
+    resources:
+      guaranteed:
+        vcore: "16"
+        memory: 30Gi
+      max:
+        vcore: "36"
+        memory: 68Gi
+  - name: beta
+    priorityOffset: 200
+    maxApplications: 4
+    resources:
+      guaranteed:
+        vcore: "8"
+        memory: 14Gi
+      max:
+        vcore: "30"
+        memory: 56Gi
+  - name: dev
+    priorityOffset: 100
+    maxApplications: 6
+    resources:
+      guaranteed:
+        vcore: "6"
+        memory: 12Gi
+      max:
+        vcore: "26"
+        memory: 48Gi
+  - name: adhoc
+    priorityOffset: 0
+    maxApplications: 2
+    resources:
+      guaranteed:
+        vcore: "2"
+        memory: 4Gi
+      max:
+        vcore: "16"
+        memory: 28Gi

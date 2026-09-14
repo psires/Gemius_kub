@@ -15,6 +15,8 @@ helm lint "$repo_root/charts/gemius-spark-platform" \
   --values "$repo_root/deploy/values/cluster-4vm.yaml"
 helm lint "$repo_root/charts/gemius-spark-platform" \
   --values "$repo_root/deploy/values/cluster-4vm-temporary-coexistence.yaml"
+helm lint "$repo_root/charts/gemius-spark-platform" \
+  --values "$repo_root/deploy/values/cluster-atm-prod.yaml"
 helm lint "$repo_root/charts/gemius-spark-job"
 
 helm template platform "$repo_root/charts/gemius-spark-platform" \
@@ -22,6 +24,9 @@ helm template platform "$repo_root/charts/gemius-spark-platform" \
 helm template platform-4vm "$repo_root/charts/gemius-spark-platform" \
   --values "$repo_root/deploy/values/cluster-4vm.yaml" \
   >"$tmp_dir/platform-4vm.yaml"
+helm template platform-atm-prod "$repo_root/charts/gemius-spark-platform" \
+  --values "$repo_root/deploy/values/cluster-atm-prod.yaml" \
+  >"$tmp_dir/platform-atm-prod.yaml"
 helm template apache "$repo_root/charts/gemius-spark-job" \
   --values "$repo_root/examples/jobs/apache-dev.yaml" \
   --set operator=apache >"$tmp_dir/apache.yaml"
@@ -35,6 +40,7 @@ grep -q 'name: spark-prod' "$tmp_dir/platform.yaml"
 grep -q 'name: spark-adhoc' "$tmp_dir/platform.yaml"
 grep -q 'value: namespace' "$tmp_dir/platform.yaml"
 grep -q 'memory: "84Gi"' "$tmp_dir/platform-4vm.yaml"
+grep -q 'memory: "68Gi"' "$tmp_dir/platform-atm-prod.yaml"
 
 bash -n "$repo_root/scripts/install.sh"
 bash -n "$repo_root/scripts/render-job.sh"
