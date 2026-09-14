@@ -8,12 +8,27 @@ source "$script_dir/common.sh"
 require_root
 : "${NODE_IP:?set NODE_IP to this node ens3 address}"
 : "${KUBERNETES_MINOR:=1.35}"
+: "${CONTAINERD_ROOT:=/mnt/ssd1/containerd}"
+: "${KUBELET_ROOT:=/mnt/ssd2/kubelet}"
+: "${REQUIRED_STORAGE_MOUNTS:=/mnt/ssd1:/mnt/ssd2}"
 
 is_ipv4 "$NODE_IP" || fail "NODE_IP must be a valid IPv4 address: $NODE_IP"
-mountpoint -q /mnt/ssd1 || fail "/mnt/ssd1 is not mounted"
-mountpoint -q /mnt/ssd2 || fail "/mnt/ssd2 is not mounted"
-[[ "$(findmnt -n -o FSTYPE /mnt/ssd1)" == "ext4" ]] || fail "/mnt/ssd1 is not ext4"
-[[ "$(findmnt -n -o FSTYPE /mnt/ssd2)" == "ext4" ]] || fail "/mnt/ssd2 is not ext4"
+for state_path in "$CONTAINERD_ROOT" "$KUBELET_ROOT"; do
+  [[ "$state_path" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "invalid state path: $state_path"
+  [[ "$state_path" != *"/../"* && "$state_path" != */.. ]] || \
+    fail "state path must not contain '..': $state_path"
+  [[ "$state_path" != / ]] || fail "state path must not be the filesystem root"
+done
+
+IFS=: read -r -a storage_mounts <<<"$REQUIRED_STORAGE_MOUNTS"
+(( ${#storage_mounts[@]} > 0 )) || fail "REQUIRED_STORAGE_MOUNTS must not be empty"
+for storage_mount in "${storage_mounts[@]}"; do
+  [[ "$storage_mount" =~ ^/[A-Za-z0-9._/-]*$ ]] || \
+    fail "invalid required storage mount: $storage_mount"
+  mountpoint -q "$storage_mount" || fail "$storage_mount is not mounted"
+  [[ "$(findmnt -n -o FSTYPE --target "$storage_mount")" == "ext4" ]] || \
+    fail "$storage_mount is not ext4"
+done
 
 log "configuring kernel modules and sysctls"
 install -m 0644 /dev/stdin /etc/modules-load.d/k8s.conf <<'EOF'
@@ -41,12 +56,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update -q
 apt-get install -y -q ca-certificates curl gpg containerd conntrack ebtables ethtool socat
 
-log "configuring containerd on /mnt/ssd1"
-install -d -m 0755 /etc/containerd /mnt/ssd1/containerd
+log "configuring containerd state at $CONTAINERD_ROOT"
+install -d -m 0755 /etc/containerd "$CONTAINERD_ROOT"
 containerd_config="$(mktemp)"
 trap 'rm -f "$containerd_config"' EXIT
 containerd config default >"$containerd_config"
-sed -ri 's|^root = .*$|root = "/mnt/ssd1/containerd"|' "$containerd_config"
+sed -ri "s|^root = .*$|root = \"$CONTAINERD_ROOT\"|" "$containerd_config"
 sed -ri 's/SystemdCgroup = false/SystemdCgroup = true/g' "$containerd_config"
 install -m 0644 "$containerd_config" /etc/containerd/config.toml
 systemctl enable --now containerd
@@ -73,11 +88,11 @@ apt-get update -q
 apt-get install -y -q kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl >/dev/null
 
-log "placing kubelet state and pod ephemeral storage on /mnt/ssd2"
-install -d -m 0755 /mnt/ssd2/kubelet /etc/systemd/system/kubelet.service.d
+log "placing kubelet state and pod ephemeral storage at $KUBELET_ROOT"
+install -d -m 0755 "$KUBELET_ROOT" /etc/systemd/system/kubelet.service.d
 install -m 0644 /dev/stdin /etc/systemd/system/kubelet.service.d/20-gemius-node.conf <<EOF
 [Service]
-Environment="KUBELET_EXTRA_ARGS=--root-dir=/mnt/ssd2/kubelet --node-ip=${NODE_IP}"
+Environment="KUBELET_EXTRA_ARGS=--root-dir=${KUBELET_ROOT} --node-ip=${NODE_IP}"
 EOF
 systemctl daemon-reload
 systemctl enable kubelet

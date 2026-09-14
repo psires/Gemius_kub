@@ -90,11 +90,21 @@ source "$inventory_file"
 : "${SERVICE_CIDR:=10.96.0.0/12}"
 : "${REMOTE_USER:=root}"
 : "${REMOTE_INSTALL_DIR:=/opt/gemius-kub}"
+: "${CONTAINERD_ROOT:=/mnt/ssd1/containerd}"
+: "${KUBELET_ROOT:=/mnt/ssd2/kubelet}"
+: "${REQUIRED_STORAGE_MOUNTS:=/mnt/ssd1:/mnt/ssd2}"
 
 [[ "$CLUSTER_NAME" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || fail "invalid cluster name: $CLUSTER_NAME"
 [[ "${#NODE_HOSTS[@]}" -eq "${#NODE_IPS[@]}" ]] || fail "node inventory lengths differ"
 (( control_plane_count < ${#NODE_HOSTS[@]} )) || \
   fail "inventory needs at least one Spark worker after the N control-plane nodes"
+for state_path in "$CONTAINERD_ROOT" "$KUBELET_ROOT"; do
+  [[ "$state_path" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "invalid state path: $state_path"
+  [[ "$state_path" != *"/../"* && "$state_path" != */.. && "$state_path" != / ]] || \
+    fail "unsafe state path: $state_path"
+done
+[[ "$REQUIRED_STORAGE_MOUNTS" =~ ^/[A-Za-z0-9._/-]*(:/[A-Za-z0-9._/-]*)*$ ]] || \
+  fail "invalid REQUIRED_STORAGE_MOUNTS list"
 
 endpoint_host="${CONTROL_PLANE_ENDPOINT%:*}"
 endpoint_port="${CONTROL_PLANE_ENDPOINT##*:}"
@@ -143,6 +153,7 @@ fi
 
 log "deployment plan: ${control_plane_count} control plane(s), ${#worker_hosts[@]} Spark worker(s)"
 log "cluster: ${CLUSTER_NAME}; shared API endpoint: ${CONTROL_PLANE_ENDPOINT}"
+log "storage: containerd=${CONTAINERD_ROOT}; kubelet=${KUBELET_ROOT}; required mounts=${REQUIRED_STORAGE_MOUNTS}"
 for index in "${!control_plane_hosts[@]}"; do
   log "control-plane[$((index + 1))]: ${control_plane_hosts[$index]} (${control_plane_ips[$index]})"
 done
@@ -215,7 +226,7 @@ done
 log "preparing all ${#all_hosts[@]} nodes"
 for index in "${!all_hosts[@]}"; do
   remote "${all_hosts[$index]}" \
-    "NODE_IP='${all_ips[$index]}' KUBERNETES_MINOR='$KUBERNETES_MINOR' bash '$remote_stage/prepare-node.sh'"
+    "NODE_IP='${all_ips[$index]}' KUBERNETES_MINOR='$KUBERNETES_MINOR' CONTAINERD_ROOT='$CONTAINERD_ROOT' KUBELET_ROOT='$KUBELET_ROOT' REQUIRED_STORAGE_MOUNTS='$REQUIRED_STORAGE_MOUNTS' bash '$remote_stage/prepare-node.sh'"
 done
 
 log "staging control-plane and cluster installation scripts"

@@ -22,11 +22,16 @@ from every node. A virtual IP must be reachable from every node. The script
 stops after initializing the first member if the generated kubeconfig cannot
 reach the Kubernetes `/readyz` endpoint through this shared address.
 
-Every listed VM must also satisfy the existing node contract: root SSH access
-from the orchestration host, stable forward and reverse naming, and mounted
-ext4 filesystems at `/mnt/ssd1` and `/mnt/ssd2`. The network must permit the
-kubeadm control-plane ports, including TCP 2379-2380 between stacked etcd
-members, and Calico VXLAN traffic on UDP 4789 between all nodes.
+Every listed VM must also satisfy the node contract: root SSH access from the
+orchestration host, stable forward and reverse naming, and ext4 storage for
+containerd and kubelet state. Storage placement is inventory-driven with
+`CONTAINERD_ROOT`, `KUBELET_ROOT`, and the colon-separated
+`REQUIRED_STORAGE_MOUNTS`. Dedicated-disk clusters can use `/mnt/ssd1` and
+`/mnt/ssd2`; single-disk VMs can use `/var/lib/containerd`,
+`/var/lib/kubelet`, and require the `/` mount. The script verifies every
+required mount before installing packages. The network must permit the kubeadm
+control-plane ports, including TCP 2379-2380 between stacked etcd members, and
+Calico VXLAN traffic on UDP 4789 between all nodes.
 
 ## Prepare an inventory
 
