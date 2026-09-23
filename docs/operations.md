@@ -66,8 +66,9 @@ Keep the command running, then open:
 - UI: <http://127.0.0.1:9889/>
 - Prometheus metrics: <http://127.0.0.1:9080/ws/v1/metrics>
 
-The default destination is `spark1w4-atm-prod.gem.lan`. If that control-plane
-node is unavailable, select another HA member:
+The helper checks `spark1w4`, `spark1w5`, and `spark1w6` in order and selects
+the first member with `kubectl`, a readable administrative kubeconfig, and the
+YuniKorn Service. To require a specific HA member instead:
 
 ```bash
 TARGET_HOST=root@spark1w5-atm-prod.gem.lan \
@@ -77,4 +78,6 @@ TARGET_HOST=root@spark1w5-atm-prod.gem.lan \
 The local and jump-box listening ports can also be overridden with
 `LOCAL_UI_PORT`, `LOCAL_METRICS_PORT`, `JUMP_UI_PORT`, and
 `JUMP_METRICS_PORT`. Every listener binds only to `127.0.0.1`; this tunnel does
-not publish the unauthenticated YuniKorn endpoints to the network.
+not publish the unauthenticated YuniKorn endpoints to the network. The helper
+fails before opening any listeners when the ATM production cluster or
+YuniKorn has not been deployed yet.

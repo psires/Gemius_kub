@@ -2,7 +2,7 @@
 set -euo pipefail
 
 JUMP_HOST="${JUMP_HOST:-root@wc1}"
-TARGET_HOST="${TARGET_HOST:-root@spark1w4-atm-prod.gem.lan}"
+TARGET_HOST_OVERRIDE="${TARGET_HOST:-}"
 JUMP_AGENT_SOCKET="${JUMP_AGENT_SOCKET:-/tmp/ssh-x6DjE2qGUQhc/agent.2816}"
 LOCAL_UI_PORT="${LOCAL_UI_PORT:-9889}"
 LOCAL_METRICS_PORT="${LOCAL_METRICS_PORT:-9080}"
@@ -30,7 +30,16 @@ validate_port() {
 
 command -v ssh >/dev/null 2>&1 || fail "ssh is required"
 validate_ssh_target "$JUMP_HOST"
-validate_ssh_target "$TARGET_HOST"
+if [[ -n "$TARGET_HOST_OVERRIDE" ]]; then
+  validate_ssh_target "$TARGET_HOST_OVERRIDE"
+  control_plane_candidates=("$TARGET_HOST_OVERRIDE")
+else
+  control_plane_candidates=(
+    root@spark1w4-atm-prod.gem.lan
+    root@spark1w5-atm-prod.gem.lan
+    root@spark1w6-atm-prod.gem.lan
+  )
+fi
 [[ "$JUMP_AGENT_SOCKET" =~ ^/[A-Za-z0-9._/-]+$ ]] || \
   fail "invalid jump-box agent socket path"
 validate_port LOCAL_UI_PORT "$LOCAL_UI_PORT"
@@ -56,6 +65,24 @@ ssh "${ssh_options[@]}" "$JUMP_HOST" \
   "test -S '$JUMP_AGENT_SOCKET' && SSH_AUTH_SOCK='$JUMP_AGENT_SOCKET' ssh-add -l >/dev/null" || \
   fail "the configured SSH agent is unavailable on $JUMP_HOST"
 
+target_host=""
+target_probe='command -v kubectl >/dev/null 2>&1 && test -r /etc/kubernetes/admin.conf && KUBECONFIG=/etc/kubernetes/admin.conf kubectl -n yunikorn get service yunikorn-service >/dev/null 2>&1'
+for candidate in "${control_plane_candidates[@]}"; do
+  printf 'Checking YuniKorn access through %s... ' "$candidate"
+  printf -v probe_command \
+    'export SSH_AUTH_SOCK=%q; exec ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o CheckHostIP=no %q %q' \
+    "$JUMP_AGENT_SOCKET" "$candidate" "$target_probe"
+  if ssh "${ssh_options[@]}" "$JUMP_HOST" "$probe_command"; then
+    target_host="$candidate"
+    printf 'ready\n'
+    break
+  fi
+  printf 'unavailable\n'
+done
+
+[[ -n "$target_host" ]] || \
+  fail "no usable ATM production control plane was found; deploy the cluster and YuniKorn first, or set TARGET_HOST to a working control plane"
+
 printf 'YuniKorn UI:      http://127.0.0.1:%s/\n' "$LOCAL_UI_PORT"
 printf 'YuniKorn metrics: http://127.0.0.1:%s/ws/v1/metrics\n' "$LOCAL_METRICS_PORT"
 printf 'Keep this process running; press Ctrl-C to close both tunnel hops.\n'
@@ -65,7 +92,7 @@ printf -v second_hop \
   "$JUMP_AGENT_SOCKET" \
   "$JUMP_UI_PORT" \
   "$JUMP_METRICS_PORT" \
-  "$TARGET_HOST" \
+  "$target_host" \
   'KUBECONFIG=/etc/kubernetes/admin.conf exec kubectl -n yunikorn port-forward --address 127.0.0.1 svc/yunikorn-service 9889:9889 9080:9080'
 
 exec ssh "${ssh_options[@]}" \
