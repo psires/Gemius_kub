@@ -44,6 +44,7 @@ grep -q 'memory: "68Gi"' "$tmp_dir/platform-atm-prod.yaml"
 
 bash -n "$repo_root/scripts/install.sh"
 bash -n "$repo_root/scripts/render-job.sh"
+bash -n "$repo_root/scripts/tunnel-yunikorn-atm-prod.sh"
 bash -n "$repo_root/scripts/validate.sh"
 for script in "$repo_root"/infra/kubeadm/*.sh; do
   bash -n "$script"

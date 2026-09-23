@@ -50,3 +50,31 @@ kubectl get sparkapplications.sparkoperator.k8s.io -A
 kubectl -n spark-dev get pods -l spark-role=driver
 kubectl -n spark-dev get events --sort-by=.lastTimestamp
 ```
+
+## YuniKorn UI and metrics tunnel for ATM production
+
+The local workstation has no destination credential for the internal nodes;
+the usable agent runs on `wc1`. The helper therefore creates two nested SSH
+forwards and runs `kubectl port-forward` on an HA control-plane node:
+
+```bash
+./scripts/tunnel-yunikorn-atm-prod.sh
+```
+
+Keep the command running, then open:
+
+- UI: <http://127.0.0.1:9889/>
+- Prometheus metrics: <http://127.0.0.1:9080/ws/v1/metrics>
+
+The default destination is `spark1w4-atm-prod.gem.lan`. If that control-plane
+node is unavailable, select another HA member:
+
+```bash
+TARGET_HOST=root@spark1w5-atm-prod.gem.lan \
+  ./scripts/tunnel-yunikorn-atm-prod.sh
+```
+
+The local and jump-box listening ports can also be overridden with
+`LOCAL_UI_PORT`, `LOCAL_METRICS_PORT`, `JUMP_UI_PORT`, and
+`JUMP_METRICS_PORT`. Every listener binds only to `127.0.0.1`; this tunnel does
+not publish the unauthenticated YuniKorn endpoints to the network.
