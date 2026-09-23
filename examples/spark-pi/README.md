@@ -1,5 +1,26 @@
 # Spark Pi seven-decimal validation
 
+## Parameterized submission
+
+To submit a new calculation through the Apache operator, pass the desired
+number of digits after the decimal point (1 through 1000):
+
+```bash
+./scripts/submit-spark-pi.sh 7
+```
+
+The helper discovers every Ready node labelled
+`gemius.io/node-role=spark-worker`, creates one executor per node, validates
+the generated resources against the Kubernetes API, and submits a uniquely
+named application to the `dev` queue. The driver uses the deterministic
+Chudnovsky series and prints `PI_RESULT`, `DECIMAL_PLACES`,
+`CHUDNOVSKY_TERMS`, `EXECUTOR_NODES`, and `VALIDATION` in its log.
+
+Set `SPARK_PI_GROUP`, `SPARK_PI_NAMESPACE`, or `SPARK_PI_JOB_NAME` only when a
+non-default queue, namespace, or stable name is required.
+
+## Fixed all-worker regression
+
 This example runs a deterministic PySpark Pi calculation through the Apache
 Spark Kubernetes Operator in the `spark-dev` namespace and therefore in the
 YuniKorn `root.spark-dev` queue.

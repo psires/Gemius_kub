@@ -44,6 +44,7 @@ grep -q 'memory: "68Gi"' "$tmp_dir/platform-atm-prod.yaml"
 
 bash -n "$repo_root/scripts/install.sh"
 bash -n "$repo_root/scripts/render-job.sh"
+bash -n "$repo_root/scripts/submit-spark-pi.sh"
 bash -n "$repo_root/scripts/tunnel-yunikorn-atm-prod.sh"
 bash -n "$repo_root/scripts/validate.sh"
 for script in "$repo_root"/infra/kubeadm/*.sh; do
@@ -71,5 +72,7 @@ if "$repo_root/infra/kubeadm/orchestrate.sh" \
 fi
 PYTHONPYCACHEPREFIX="$tmp_dir/pycache" \
   python3 -m py_compile "$repo_root/images/spark-pex/pex_runner.py"
+PYTHONPYCACHEPREFIX="$tmp_dir/pycache" \
+  python3 -m py_compile "$repo_root/examples/spark-pi/spark_pi.py"
 
 echo "All local validations passed"

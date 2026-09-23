@@ -119,6 +119,13 @@ Replace the example image, PEX URI, and entrypoint first.
 
 ## Run the all-worker Spark Pi validation
 
+Submit a parameterized Pi calculation through the Apache operator by passing
+the required number of decimal places:
+
+```bash
+./scripts/submit-spark-pi.sh 7
+```
+
 The checked-in Spark Pi validation uses the Apache operator and the dev queue.
 It places one executor on each of the three Spark worker nodes and verifies a
 deterministic value of Pi to seven decimal places:
