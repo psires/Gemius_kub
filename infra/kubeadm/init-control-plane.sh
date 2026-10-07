@@ -32,7 +32,9 @@ if [[ -f /etc/kubernetes/admin.conf ]]; then
 fi
 
 config_file="$(mktemp)"
-trap 'rm -f "$config_file"' EXIT
+kubeadm_output="$(mktemp)"
+chmod 0600 "$kubeadm_output"
+trap 'rm -f "$config_file" "$kubeadm_output"' EXIT
 install -m 0600 /dev/stdin "$config_file" <<EOF
 apiVersion: kubeadm.k8s.io/v1beta4
 kind: InitConfiguration
@@ -68,7 +70,13 @@ EOF
 log "pulling Kubernetes control-plane images"
 kubeadm config images pull --config "$config_file"
 log "initializing the control plane"
-kubeadm init --config "$config_file" --upload-certs
+if ! kubeadm init --config "$config_file" --upload-certs >"$kubeadm_output" 2>&1; then
+  sed -E \
+    -e 's/[a-z0-9]{6}\.[a-z0-9]{16}/<redacted-bootstrap-token>/g' \
+    -e 's/[a-f0-9]{64}/<redacted-certificate-key-or-hash>/g' \
+    "$kubeadm_output" >&2
+  fail "kubeadm init failed"
+fi
 
 install -d -m 0700 /root/.kube
 install -m 0600 /etc/kubernetes/admin.conf /root/.kube/config
