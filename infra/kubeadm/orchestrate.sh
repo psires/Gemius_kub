@@ -348,6 +348,13 @@ log "waiting for all ${#all_hosts[@]} nodes to become Ready"
 remote "$primary_control_plane" \
   "KUBECONFIG=/etc/kubernetes/admin.conf bash -c 'source $remote_stage/common.sh; wait_for_nodes ${#all_hosts[@]}'"
 
+# A kubelet can request its serving certificate just after the first approval
+# pass while the last nodes are becoming Ready. Repeat the identity/SAN-
+# validated approval now so a freshly deployed cluster has no late request.
+log "checking for late kubelet serving certificates"
+remote "$primary_control_plane" \
+  "KUBECONFIG=/etc/kubernetes/admin.conf INVENTORY_FILE='$remote_stage/inventory.env' bash '$remote_stage/approve-kubelet-serving-csrs.sh'"
+
 if (( control_plane_count > 1 )); then
   log "rebalancing CoreDNS after the HA control planes joined"
   remote "$primary_control_plane" \
