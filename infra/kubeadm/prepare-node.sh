@@ -12,6 +12,19 @@ require_root
 : "${KUBELET_ROOT:=/mnt/ssd2/kubelet}"
 : "${REQUIRED_STORAGE_MOUNTS:=/mnt/ssd1:/mnt/ssd2}"
 
+containerd_config=""
+apt_jobs_paused=false
+cleanup() {
+  if [[ -n "$containerd_config" ]]; then
+    rm -f "$containerd_config"
+  fi
+  if [[ "$apt_jobs_paused" == true ]]; then
+    systemctl start --no-block apt-daily.timer apt-daily-upgrade.timer \
+      unattended-upgrades.service >/dev/null 2>&1 || true
+  fi
+}
+trap cleanup EXIT
+
 is_ipv4 "$NODE_IP" || fail "NODE_IP must be a valid IPv4 address: $NODE_IP"
 for state_path in "$CONTAINERD_ROOT" "$KUBELET_ROOT"; do
   [[ "$state_path" =~ ^/[A-Za-z0-9._/-]+$ ]] || fail "invalid state path: $state_path"
@@ -53,13 +66,18 @@ fi
 
 log "installing container runtime prerequisites"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get install -y -q ca-certificates curl gpg containerd conntrack ebtables ethtool socat
+log "pausing automatic apt jobs during package installation"
+systemctl stop apt-daily.timer apt-daily-upgrade.timer apt-daily.service \
+  apt-daily-upgrade.service unattended-upgrades.service || true
+apt_jobs_paused=true
+apt_options=(-o DPkg::Lock::Timeout=300)
+apt-get "${apt_options[@]}" update -q
+apt-get "${apt_options[@]}" install -y -q \
+  ca-certificates curl gpg containerd conntrack ebtables ethtool socat
 
 log "configuring containerd state at $CONTAINERD_ROOT"
 install -d -m 0755 /etc/containerd "$CONTAINERD_ROOT"
 containerd_config="$(mktemp)"
-trap 'rm -f "$containerd_config"' EXIT
 containerd config default >"$containerd_config"
 sed -ri "s|^root = .*$|root = \"$CONTAINERD_ROOT\"|" "$containerd_config"
 sed -ri 's/SystemdCgroup = false/SystemdCgroup = true/g' "$containerd_config"
@@ -84,8 +102,8 @@ Acquire::https::Proxy::pkgs.k8s.io "DIRECT";
 Acquire::http::Proxy::prod-cdn.packages.k8s.io "DIRECT";
 Acquire::https::Proxy::prod-cdn.packages.k8s.io "DIRECT";
 EOF
-apt-get update -q
-apt-get install -y -q kubelet kubeadm kubectl
+apt-get "${apt_options[@]}" update -q
+apt-get "${apt_options[@]}" install -y -q kubelet kubeadm kubectl
 apt-mark hold kubelet kubeadm kubectl >/dev/null
 
 log "placing kubelet state and pod ephemeral storage at $KUBELET_ROOT"
