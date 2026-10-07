@@ -11,6 +11,7 @@ require_command ctr
 : "${KUBE_VIP_INTERFACE:=ens3}"
 : "${KUBE_VIP_VERSION:?set KUBE_VIP_VERSION}"
 : "${KUBE_VIP_KUBECONFIG:=/etc/kubernetes/admin.conf}"
+: "${KUBE_VIP_LOCAL_API_ADDRESS:=}"
 
 is_ipv4 "$KUBE_VIP_ADDRESS" || fail "invalid kube-vip IPv4 address: $KUBE_VIP_ADDRESS"
 [[ "$KUBE_VIP_INTERFACE" =~ ^[A-Za-z0-9._:-]+$ ]] || \
@@ -18,9 +19,15 @@ is_ipv4 "$KUBE_VIP_ADDRESS" || fail "invalid kube-vip IPv4 address: $KUBE_VIP_AD
 [[ "$KUBE_VIP_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
   fail "invalid kube-vip version: $KUBE_VIP_VERSION"
 case "$KUBE_VIP_KUBECONFIG" in
-  /etc/kubernetes/admin.conf|/etc/kubernetes/super-admin.conf) ;;
+  /etc/kubernetes/admin.conf|/etc/kubernetes/super-admin.conf|/etc/kubernetes/kube-vip.conf) ;;
   *) fail "unsupported kube-vip kubeconfig: $KUBE_VIP_KUBECONFIG" ;;
 esac
+if [[ "$KUBE_VIP_KUBECONFIG" == /etc/kubernetes/kube-vip.conf ]]; then
+  is_ipv4 "$KUBE_VIP_LOCAL_API_ADDRESS" || \
+    fail "KUBE_VIP_LOCAL_API_ADDRESS must be the node's IPv4 address"
+  [[ -f /etc/kubernetes/admin.conf ]] || \
+    fail "admin.conf is required before creating kube-vip.conf"
+fi
 ip link show dev "$KUBE_VIP_INTERFACE" >/dev/null 2>&1 || \
   fail "kube-vip interface does not exist: $KUBE_VIP_INTERFACE"
 
@@ -28,8 +35,26 @@ image="ghcr.io/kube-vip/kube-vip:${KUBE_VIP_VERSION}"
 manifest_dir=/etc/kubernetes/manifests
 manifest_path="$manifest_dir/kube-vip.yaml"
 manifest_tmp="$(mktemp)"
+kubeconfig_tmp=""
 container_id="kube-vip-manifest-${RANDOM}-$$"
-trap 'rm -f "$manifest_tmp"' EXIT
+trap 'rm -f "$manifest_tmp" ${kubeconfig_tmp:+"$kubeconfig_tmp"}' EXIT
+
+if [[ "$KUBE_VIP_KUBECONFIG" == /etc/kubernetes/kube-vip.conf ]]; then
+  kubeconfig_tmp="$(mktemp)"
+  awk -v server="https://${KUBE_VIP_LOCAL_API_ADDRESS}:6443" '
+    /^[[:space:]]*server:/ && !updated {
+      sub(/server:.*/, "server: " server)
+      updated = 1
+    }
+    { print }
+    END { if (!updated) exit 1 }
+  ' /etc/kubernetes/admin.conf >"$kubeconfig_tmp" || \
+    fail "could not build the node-local kube-vip kubeconfig"
+  grep -Fq "server: https://${KUBE_VIP_LOCAL_API_ADDRESS}:6443" "$kubeconfig_tmp" || \
+    fail "node-local kube-vip kubeconfig has the wrong API endpoint"
+  install -m 0600 "$kubeconfig_tmp" "$KUBE_VIP_KUBECONFIG"
+  log "installed node-local kube-vip kubeconfig for $KUBE_VIP_LOCAL_API_ADDRESS"
+fi
 
 log "pulling $image"
 ctr --namespace k8s.io images pull "$image"

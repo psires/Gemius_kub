@@ -219,7 +219,7 @@ for index in "${!all_hosts[@]}"; do
       fail "$host is a control-plane node but the requested N assigns it as a worker"
     existing_cluster_config="$(
       remote "$host" \
-        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get configmap kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}'"
+        "KUBECONFIG=/etc/kubernetes/admin.conf kubectl --server='https://${ip}:6443' get configmap kubeadm-config -n kube-system -o jsonpath='{.data.ClusterConfiguration}'"
     )"
     [[ "$existing_cluster_config" == *"clusterName: ${CLUSTER_NAME}"* ]] || \
       fail "$host already controls a different Kubernetes cluster"
@@ -274,7 +274,7 @@ remote "$primary_control_plane" \
 if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
   log "switching kube-vip to the administrative kubeconfig"
   remote "$primary_control_plane" \
-    "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/admin.conf bash '$remote_stage/install-kube-vip.sh'"
+    "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/kube-vip.conf KUBE_VIP_LOCAL_API_ADDRESS='$primary_control_plane_ip' bash '$remote_stage/install-kube-vip.sh'"
 fi
 remote "$primary_control_plane" "HELM_VERSION='$HELM_VERSION' bash '$remote_stage/install-helm.sh'"
 remote "$primary_control_plane" \
@@ -311,7 +311,7 @@ if (( control_plane_count > 1 )); then
     fi
     if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
       remote "$host" \
-        "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/admin.conf bash '$remote_stage/install-kube-vip.sh'"
+        "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/kube-vip.conf KUBE_VIP_LOCAL_API_ADDRESS='$ip' bash '$remote_stage/install-kube-vip.sh'"
     fi
     remote "$primary_control_plane" \
       "KUBECONFIG=/etc/kubernetes/admin.conf kubectl wait --for=condition=Ready 'node/$node_name' --timeout=10m"
