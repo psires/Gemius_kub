@@ -189,7 +189,10 @@ require_command tar
 [[ -n "${SSH_AUTH_SOCK:-}" && -S "$SSH_AUTH_SOCK" ]] || \
   fail "SSH_AUTH_SOCK must point to the jump host's working agent socket"
 
-ssh_options=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes)
+# The environment reuses VM addresses, so stale address-only known_hosts entries
+# can differ from the already trusted hostname key. Verify the hostname key
+# strictly while avoiding the redundant address-key lookup.
+ssh_options=(-o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=yes -o CheckHostIP=no)
 remote_stage=/tmp/gemius-k8s-bootstrap
 archive=""
 
