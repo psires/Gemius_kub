@@ -212,6 +212,7 @@ remote() {
 log "checking access and guarding against accidental cluster replacement"
 for index in "${!all_hosts[@]}"; do
   host="${all_hosts[$index]}"
+  ip="${all_ips[$index]}"
   remote "$host" 'true' >/dev/null
 
   if remote "$host" 'test -f /etc/kubernetes/admin.conf'; then
