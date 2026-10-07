@@ -56,6 +56,11 @@ done
   --control-planes 3 \
   --inventory "$repo_root/infra/kubeadm/inventory-ha.example.env" \
   --plan >/dev/null
+"$repo_root/infra/kubeadm/orchestrate.sh" \
+  --control-planes 3 \
+  --inventory "$repo_root/infra/kubeadm/inventory-atm-prod.env" \
+  --platform-values deploy/values/cluster-atm-prod.yaml \
+  --plan >/dev/null
 if "$repo_root/infra/kubeadm/orchestrate.sh" \
   --control-planes 2 \
   --inventory "$repo_root/infra/kubeadm/inventory-ha.example.env" \

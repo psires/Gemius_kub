@@ -15,12 +15,14 @@ stacked kubeadm control-plane/etcd nodes. The requested count is supplied with
 - For `N > 1`, `CONTROL_PLANE_ENDPOINT` must be a stable TCP load-balancer or
   floating virtual-IP endpoint. It must not be an individual node address.
 
-The deployment script deliberately does not create the load balancer. Before
-bootstrap, configure its listener and health checks on TCP port 6443 and add
-all intended control-plane addresses as backends. A DNS endpoint must resolve
-from every node. A virtual IP must be reachable from every node. The script
-stops after initializing the first member if the generated kubeconfig cannot
-reach the Kubernetes `/readyz` endpoint through this shared address.
+The deployment supports either an externally managed load balancer or kube-vip
+in ARP mode. For an external load balancer, configure its listener and health
+checks on TCP port 6443 and add all intended control-plane addresses as
+backends. For kube-vip, set `KUBE_VIP_ADDRESS` and `KUBE_VIP_INTERFACE` in the
+inventory, and make `CONTROL_PLANE_ENDPOINT` use that address on port 6443.
+The address must be reserved, unused, and on the control-plane nodes' Layer-2
+network. The script installs a static kube-vip Pod on every control plane and
+checks the API `/readyz` endpoint through the VIP.
 
 Every listed VM must also satisfy the node contract: root SSH access from the
 orchestration host, stable forward and reverse naming, and ext4 storage for
@@ -82,15 +84,17 @@ The automation:
 1. Validates every target and refuses conflicting existing cluster roles.
 2. Prepares containerd, kubelet, kubeadm, and node storage.
 3. Initializes the first control plane against the shared endpoint.
-4. Installs Calico and verifies the API through the shared endpoint.
-5. Uploads kubeadm's short-lived encrypted certificate bundle and joins the
+4. When configured, bootstraps kube-vip and installs its final static-Pod
+   manifest on every control plane.
+5. Installs Calico and verifies the API through the shared endpoint.
+6. Uploads kubeadm's short-lived encrypted certificate bundle and joins the
    other control planes sequentially.
-6. Joins the Spark workers, validates kubelet serving CSRs, and waits for all
+7. Joins the Spark workers, validates kubelet serving CSRs, and waits for all
    nodes.
-7. Restarts CoreDNS after HA membership is established.
-8. Installs Helm, the repository, and a mode-0600 runtime inventory on every
+8. Restarts CoreDNS after HA membership is established.
+9. Installs Helm, the repository, and a mode-0600 runtime inventory on every
    control plane so administration does not depend on the first member.
-9. Deploys YuniKorn and both Spark operators once, labels node roles, and
+10. Deploys YuniKorn and both Spark operators once, labels node roles, and
    verifies that the observed control-plane and running etcd counts both equal
    `N`.
 

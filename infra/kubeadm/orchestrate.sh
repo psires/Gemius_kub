@@ -93,6 +93,8 @@ source "$inventory_file"
 : "${CONTAINERD_ROOT:=/mnt/ssd1/containerd}"
 : "${KUBELET_ROOT:=/mnt/ssd2/kubelet}"
 : "${REQUIRED_STORAGE_MOUNTS:=/mnt/ssd1:/mnt/ssd2}"
+: "${KUBE_VIP_ADDRESS:=}"
+: "${KUBE_VIP_INTERFACE:=ens3}"
 
 [[ "$CLUSTER_NAME" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || fail "invalid cluster name: $CLUSTER_NAME"
 [[ "${#NODE_HOSTS[@]}" -eq "${#NODE_IPS[@]}" ]] || fail "node inventory lengths differ"
@@ -114,6 +116,15 @@ endpoint_port="${CONTROL_PLANE_ENDPOINT##*:}"
   fail "CONTROL_PLANE_ENDPOINT must include a numeric port"
 (( 10#$endpoint_port >= 1 && 10#$endpoint_port <= 65535 )) || \
   fail "CONTROL_PLANE_ENDPOINT port is outside 1-65535"
+if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
+  is_ipv4 "$KUBE_VIP_ADDRESS" || fail "invalid KUBE_VIP_ADDRESS: $KUBE_VIP_ADDRESS"
+  [[ "$KUBE_VIP_INTERFACE" =~ ^[A-Za-z0-9._:-]+$ ]] || \
+    fail "invalid KUBE_VIP_INTERFACE: $KUBE_VIP_INTERFACE"
+  [[ "$endpoint_host" == "$KUBE_VIP_ADDRESS" ]] || \
+    fail "CONTROL_PLANE_ENDPOINT host must equal KUBE_VIP_ADDRESS"
+  [[ "$endpoint_port" == 6443 ]] || fail "kube-vip control-plane endpoint must use port 6443"
+  (( control_plane_count > 1 )) || fail "kube-vip requires more than one control-plane node"
+fi
 
 for index in "${!NODE_HOSTS[@]}"; do
   host="${NODE_HOSTS[$index]}"
@@ -153,6 +164,11 @@ fi
 
 log "deployment plan: ${control_plane_count} control plane(s), ${#worker_hosts[@]} Spark worker(s)"
 log "cluster: ${CLUSTER_NAME}; shared API endpoint: ${CONTROL_PLANE_ENDPOINT}"
+if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
+  log "API HA: kube-vip ${KUBE_VIP_VERSION} at ${KUBE_VIP_ADDRESS} on ${KUBE_VIP_INTERFACE}"
+else
+  log "API HA: externally managed load balancer or VIP"
+fi
 log "storage: containerd=${CONTAINERD_ROOT}; kubelet=${KUBELET_ROOT}; required mounts=${REQUIRED_STORAGE_MOUNTS}"
 for index in "${!control_plane_hosts[@]}"; do
   log "control-plane[$((index + 1))]: ${control_plane_hosts[$index]} (${control_plane_ips[$index]})"
@@ -233,6 +249,7 @@ log "staging control-plane and cluster installation scripts"
 for host in "${control_plane_hosts[@]}"; do
   scp "${ssh_options[@]}" "$script_dir/common.sh" "$script_dir/init-control-plane.sh" \
     "$script_dir/install-helm.sh" "$script_dir/install-calico.sh" \
+    "$script_dir/install-kube-vip.sh" \
     "$script_dir/approve-kubelet-serving-csrs.sh" \
     "${REMOTE_USER}@${host}:${remote_stage}/"
   scp "${ssh_options[@]}" "$inventory_file" \
@@ -241,9 +258,21 @@ for host in "${control_plane_hosts[@]}"; do
     "for script in '$remote_stage'/*.sh; do bash -n \"\$script\"; done"
 done
 
+if [[ -n "$KUBE_VIP_ADDRESS" ]] && \
+   ! remote "$primary_control_plane" 'test -f /etc/kubernetes/admin.conf'; then
+  log "installing bootstrap kube-vip manifest on $primary_control_plane"
+  remote "$primary_control_plane" \
+    "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/super-admin.conf bash '$remote_stage/install-kube-vip.sh'"
+fi
+
 log "initializing $primary_control_plane as the first control plane"
 remote "$primary_control_plane" \
   "BOOTSTRAP_CONTROL_PLANE_IP='$primary_control_plane_ip' BOOTSTRAP_CONTROL_PLANE_HOST='$primary_control_plane' CONTROL_PLANE_ENDPOINT='$CONTROL_PLANE_ENDPOINT' CLUSTER_NAME='$CLUSTER_NAME' KUBERNETES_MINOR='$KUBERNETES_MINOR' POD_CIDR='$POD_CIDR' SERVICE_CIDR='$SERVICE_CIDR' bash '$remote_stage/init-control-plane.sh'"
+if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
+  log "switching kube-vip to the administrative kubeconfig"
+  remote "$primary_control_plane" \
+    "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/admin.conf bash '$remote_stage/install-kube-vip.sh'"
+fi
 remote "$primary_control_plane" "HELM_VERSION='$HELM_VERSION' bash '$remote_stage/install-helm.sh'"
 remote "$primary_control_plane" \
   "CALICO_VERSION='$CALICO_VERSION' POD_CIDR='$POD_CIDR' bash '$remote_stage/install-calico.sh'"
@@ -276,6 +305,10 @@ if (( control_plane_count > 1 )); then
     else
       remote "$host" \
         "$control_plane_join_command --apiserver-advertise-address '$ip' --node-name '$node_name' --cri-socket unix:///run/containerd/containerd.sock"
+    fi
+    if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
+      remote "$host" \
+        "KUBE_VIP_ADDRESS='$KUBE_VIP_ADDRESS' KUBE_VIP_INTERFACE='$KUBE_VIP_INTERFACE' KUBE_VIP_VERSION='$KUBE_VIP_VERSION' KUBE_VIP_KUBECONFIG=/etc/kubernetes/admin.conf bash '$remote_stage/install-kube-vip.sh'"
     fi
     remote "$primary_control_plane" \
       "KUBECONFIG=/etc/kubernetes/admin.conf kubectl wait --for=condition=Ready 'node/$node_name' --timeout=10m"
@@ -364,6 +397,16 @@ observed_etcd_members="$(
   fail "expected $control_plane_count control planes, observed $observed_control_planes"
 [[ "$observed_etcd_members" -eq "$control_plane_count" ]] || \
   fail "expected $control_plane_count running etcd members, observed $observed_etcd_members"
+if [[ -n "$KUBE_VIP_ADDRESS" ]]; then
+  observed_kube_vip_pods="$(
+    remote "$primary_control_plane" \
+      "KUBECONFIG=/etc/kubernetes/admin.conf kubectl -n kube-system get pods --no-headers | awk '\$1 ~ /^kube-vip-/ && \$3 == \"Running\" {count++} END {print count+0}'"
+  )"
+  [[ "$observed_kube_vip_pods" -eq "$control_plane_count" ]] || \
+    fail "expected $control_plane_count running kube-vip pods, observed $observed_kube_vip_pods"
+  remote "$primary_control_plane" \
+    "KUBECONFIG=/etc/kubernetes/admin.conf kubectl get --raw=/readyz"
+fi
 
 log "cluster deployment complete"
 remote "$primary_control_plane" \
