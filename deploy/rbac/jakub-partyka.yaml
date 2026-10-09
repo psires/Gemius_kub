@@ -1,0 +1,93 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: gemius-spark-end-user
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - persistentvolumeclaims
+      - pods
+      - services
+    verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/portforward"]
+    verbs: ["create", "get"]
+  - apiGroups: [""]
+    resources: ["events", "limitranges", "resourcequotas", "serviceaccounts"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["spark.apache.org"]
+    resources: ["sparkapplications", "sparkconnects"]
+    verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["scheduledsparkapplications", "sparkapplications"]
+    verbs: ["create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jakub-partyka-spark-access
+  namespace: spark-prod
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: jakub.partyka
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gemius-spark-end-user
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jakub-partyka-spark-access
+  namespace: spark-beta
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: jakub.partyka
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gemius-spark-end-user
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jakub-partyka-spark-access
+  namespace: spark-dev
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: jakub.partyka
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gemius-spark-end-user
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: jakub-partyka-spark-access
+  namespace: spark-adhoc
+  labels:
+    app.kubernetes.io/part-of: gemius-spark
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: jakub.partyka
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: gemius-spark-end-user
